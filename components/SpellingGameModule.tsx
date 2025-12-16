@@ -52,7 +52,8 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
   // --- Pointer Event Handlers (Drag & Drop) ---
 
   const handlePointerDown = (e: React.PointerEvent, id: string, char: string) => {
-    e.preventDefault(); // Prevent scrolling on touch
+    // Prevent scrolling on touch specifically when starting a drag on a letter
+    e.preventDefault(); 
     const target = e.currentTarget as HTMLElement;
     const rect = target.getBoundingClientRect();
     
@@ -71,6 +72,7 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
   useEffect(() => {
     const handlePointerMove = (e: PointerEvent) => {
       if (dragState.active) {
+        e.preventDefault(); // Prevent scrolling while dragging
         setDragState(prev => ({
           ...prev,
           x: e.clientX - prev.offsetX,
@@ -99,11 +101,16 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
     };
 
     if (dragState.active) {
+      // Add 'touch-action: none' to body while dragging to be safe
+      document.body.style.touchAction = 'none';
       window.addEventListener('pointermove', handlePointerMove);
       window.addEventListener('pointerup', handlePointerUp);
+    } else {
+      document.body.style.touchAction = '';
     }
 
     return () => {
+      document.body.style.touchAction = '';
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
     };
@@ -220,10 +227,10 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
   if (!level) return <div>Loading...</div>;
 
   return (
-    <div className="min-h-screen flex flex-col bg-emerald-400 transition-colors duration-500 overflow-hidden touch-none select-none">
+    <div className="min-h-screen flex flex-col bg-emerald-400 transition-colors duration-500 overflow-hidden select-none">
        {/* 
-         Set correct feedback duration to 1000ms (1s) for quick transition.
-         Set incorrect feedback duration to default or slightly longer if needed (using default 1500 for incorrect via ternary).
+         Removed global touch-none. 
+         Added touch-none to draggable items.
        */}
        <FeedbackOverlay 
          type={feedback} 
@@ -235,7 +242,7 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
       <div className="p-4 flex items-center justify-between">
         <button 
           onClick={onBack}
-          className="bg-white/20 hover:bg-white/30 text-white rounded-full p-3 transition-all touch-auto"
+          className="bg-white/20 hover:bg-white/30 text-white rounded-full p-3 transition-all"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
             <path d="m9 18 6-6-6-6"/>
@@ -257,7 +264,7 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
             {/* Audio Button */}
             <button
                 onClick={handleSpeakWord}
-                className="bg-white/20 hover:bg-white/40 text-white p-3 rounded-full transition-all shadow-md active:scale-95 flex-shrink-0 touch-auto"
+                className="bg-white/20 hover:bg-white/40 text-white p-3 rounded-full transition-all shadow-md active:scale-95 flex-shrink-0"
                 title="השמע מילה"
             >
                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -274,7 +281,7 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
                         data-slot-index={idx}
                         onClick={() => handleSlotClick(idx)}
                         className={`
-                            w-14 h-14 md:w-20 md:h-20 rounded-xl border-4 flex items-center justify-center text-4xl font-bold transition-all cursor-pointer z-10 touch-auto
+                            w-14 h-14 md:w-20 md:h-20 rounded-xl border-4 flex items-center justify-center text-4xl font-bold transition-all cursor-pointer z-10
                             ${char 
                               ? 'bg-white border-white text-slate-800 shadow-md' 
                               : 'bg-black/20 border-white/40 border-dashed text-transparent hover:bg-white/10'}
@@ -318,7 +325,7 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
       {/* Floating Drag Item */}
       {dragState.active && dragState.char && (
         <div 
-            className="fixed w-20 h-20 bg-white/90 text-emerald-600 rounded-2xl shadow-2xl flex items-center justify-center text-5xl font-bold z-50 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 border-4 border-emerald-400"
+            className="fixed w-20 h-20 bg-white/90 text-emerald-600 rounded-2xl shadow-2xl flex items-center justify-center text-5xl font-bold z-50 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 border-4 border-emerald-400 touch-none"
             style={{
                 left: dragState.x,
                 top: dragState.y,
