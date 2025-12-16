@@ -172,7 +172,8 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
 
   // --- Check Answer ---
   useEffect(() => {
-    if (!level) return;
+    // Ensure we don't check again if feedback is already in progress
+    if (!level || feedback !== null) return;
     
     const isFull = placedLetters.every(l => l !== null);
     if (isFull) {
@@ -187,7 +188,7 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
             audioService.playIncorrect();
         }
     }
-  }, [placedLetters, level, onStarEarned]);
+  }, [placedLetters, level, onStarEarned, feedback]);
 
   const handleFeedbackClose = () => {
     if (feedback === 'correct') {
