@@ -193,6 +193,11 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
   const handleFeedbackClose = () => {
     if (feedback === 'correct') {
       initLevel();
+    } else if (feedback === 'incorrect') {
+      // Reset board to prevent infinite loop.
+      // We clear placed letters and mark pool letters as unused so the user can try again.
+      setPlacedLetters(new Array(placedLetters.length).fill(null));
+      setPoolLetters(prev => prev.map(l => ({ ...l, used: false })));
     }
     setFeedback(null);
   };
