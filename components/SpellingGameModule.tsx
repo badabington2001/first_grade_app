@@ -44,7 +44,8 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
 
   const handleSpeakWord = () => {
     if (level) {
-      audioService.speak(level.wordClean, 'he-IL', true);
+      // Use word with Nikud for better pronunciation and consistency
+      audioService.speak(level.word, 'he-IL', true);
     }
   };
 
@@ -234,7 +235,7 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
       <div className="p-4 flex items-center justify-between">
         <button 
           onClick={onBack}
-          className="bg-white/20 hover:bg-white/30 text-white rounded-full p-3 transition-all"
+          className="bg-white/20 hover:bg-white/30 text-white rounded-full p-3 transition-all touch-auto"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
             <path d="m9 18 6-6-6-6"/>
@@ -256,7 +257,7 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
             {/* Audio Button */}
             <button
                 onClick={handleSpeakWord}
-                className="bg-white/20 hover:bg-white/40 text-white p-3 rounded-full transition-all shadow-md active:scale-95 flex-shrink-0"
+                className="bg-white/20 hover:bg-white/40 text-white p-3 rounded-full transition-all shadow-md active:scale-95 flex-shrink-0 touch-auto"
                 title="השמע מילה"
             >
                  <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -273,7 +274,7 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
                         data-slot-index={idx}
                         onClick={() => handleSlotClick(idx)}
                         className={`
-                            w-14 h-14 md:w-20 md:h-20 rounded-xl border-4 flex items-center justify-center text-4xl font-bold transition-all cursor-pointer z-10
+                            w-14 h-14 md:w-20 md:h-20 rounded-xl border-4 flex items-center justify-center text-4xl font-bold transition-all cursor-pointer z-10 touch-auto
                             ${char 
                               ? 'bg-white border-white text-slate-800 shadow-md' 
                               : 'bg-black/20 border-white/40 border-dashed text-transparent hover:bg-white/10'}
