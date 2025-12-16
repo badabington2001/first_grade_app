@@ -21,7 +21,7 @@ interface DragState {
 export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, onStarEarned }) => {
   const [level, setLevel] = useState<SpellingLevel | null>(null);
   const [placedLetters, setPlacedLetters] = useState<(string | null)[]>([]);
-  const [poolLetters, setPoolLetters] = useState<{id: string, char: string, used: boolean}[]>([]);
+  const [poolLetters, setPoolLetters] = useState<{id: string, char: string, charWithNikud: string, used: boolean}[]>([]);
   const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null);
   
   // Custom Drag State for Pointer Events (Works on Mobile & Desktop)
@@ -42,11 +42,11 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
     initLevel();
   }, [initLevel]);
 
-  useEffect(() => {
+  const handleSpeakWord = () => {
     if (level) {
-      audioService.speak("איית את המילה " + level.wordClean);
+      audioService.speak(level.wordClean, 'he-IL', true);
     }
-  }, [level]);
+  };
 
   // --- Pointer Event Handlers (Drag & Drop) ---
 
@@ -64,9 +64,6 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
       offsetX: e.clientX - rect.left,
       offsetY: e.clientY - rect.top
     });
-
-    // Play sound immediately on pick up
-    audioService.speak(char.replace(/[\u0591-\u05C7]/g, ''));
   };
 
   // Global pointer move/up handlers
@@ -150,7 +147,6 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
     if (emptyIndex === -1) return;
 
     performDrop(emptyIndex, letterId, char);
-    audioService.speak(char.replace(/[\u0591-\u05C7]/g, ''));
   };
 
   const handleSlotClick = (index: number) => {
@@ -189,7 +185,6 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
         } else {
             setFeedback('incorrect');
             audioService.playIncorrect();
-            // We now rely on FeedbackOverlay's duration to close incorrect feedback as well
         }
     }
   }, [placedLetters, level, onStarEarned]);
@@ -209,6 +204,7 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
       el.style.left = Math.random() * 100 + 'vw';
       el.style.animationDuration = (Math.random() * 2 + 1) + 's';
       el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+      el.style.zIndex = '200'; // Ensure confetti is above the overlay
       document.body.appendChild(el);
       setTimeout(() => el.remove(), 3000);
     }
@@ -219,14 +215,13 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
   return (
     <div className="min-h-screen flex flex-col bg-emerald-400 transition-colors duration-500 overflow-hidden touch-none select-none">
        {/* 
-          Duration logic:
-          Correct: 1000ms (1 second) reduced for faster flow.
-          Incorrect: 1000ms (1 second) for quick retry.
+         Set correct feedback duration to 1000ms (1s) for quick transition.
+         Set incorrect feedback duration to default or slightly longer if needed (using default 1500 for incorrect via ternary).
        */}
        <FeedbackOverlay 
          type={feedback} 
          onClose={handleFeedbackClose} 
-         duration={feedback === 'correct' ? 1000 : 1000} 
+         duration={feedback === 'correct' ? 1000 : 1500} 
        />
 
       {/* Header */}
@@ -250,23 +245,40 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
             <span className="text-9xl filter drop-shadow-sm">{level.emoji}</span>
         </div>
 
-        {/* Empty Slots (The Word) */}
-        <div className="flex flex-row gap-2 md:gap-4 justify-center" dir="rtl">
-            {placedLetters.map((char, idx) => (
-                <div
-                    key={`slot-${idx}`}
-                    data-slot-index={idx}
-                    onClick={() => handleSlotClick(idx)}
-                    className={`
-                        w-14 h-14 md:w-20 md:h-20 rounded-xl border-4 flex items-center justify-center text-4xl font-bold transition-all cursor-pointer z-10
-                        ${char 
-                          ? 'bg-white border-white text-slate-800 shadow-md' 
-                          : 'bg-black/20 border-white/40 border-dashed text-transparent hover:bg-white/10'}
-                    `}
-                >
-                    {char || '?'}
-                </div>
-            ))}
+        {/* Word Area with Audio Button */}
+        <div className="flex items-center justify-center gap-4 w-full">
+            {/* Audio Button */}
+            <button
+                onClick={handleSpeakWord}
+                className="bg-white/20 hover:bg-white/40 text-white p-3 rounded-full transition-all shadow-md active:scale-95 flex-shrink-0"
+                title="השמע מילה"
+            >
+                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
+                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
+                </svg>
+            </button>
+
+            {/* Empty Slots (The Word) */}
+            <div className="flex flex-row gap-2 md:gap-4 justify-center" dir="rtl">
+                {placedLetters.map((char, idx) => (
+                    <div
+                        key={`slot-${idx}`}
+                        data-slot-index={idx}
+                        onClick={() => handleSlotClick(idx)}
+                        className={`
+                            w-14 h-14 md:w-20 md:h-20 rounded-xl border-4 flex items-center justify-center text-4xl font-bold transition-all cursor-pointer z-10
+                            ${char 
+                              ? 'bg-white border-white text-slate-800 shadow-md' 
+                              : 'bg-black/20 border-white/40 border-dashed text-transparent hover:bg-white/10'}
+                        `}
+                    >
+                        {char || '?'}
+                    </div>
+                ))}
+            </div>
+             {/* Spacer to balance the layout if needed, though centered flex works well with just the button on one side */}
+             <div className="w-12 hidden md:block"></div>
         </div>
 
         <div className="flex-1"></div>
@@ -310,4 +322,4 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
       )}
     </div>
   );
-};
+}
