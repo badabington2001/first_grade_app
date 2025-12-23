@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ViewState } from './types';
+import { ViewState, MathLevel } from './types';
 import { generateHebrewQuestion, generateEnglishQuestion, generateMathQuestion } from './constants';
 import { GameModule } from './components/GameModule';
 import { SpellingGameModule } from './components/SpellingGameModule';
@@ -8,6 +8,10 @@ import { StarCounter } from './components/StarCounter';
 const App: React.FC = () => {
   const [view, setView] = useState<ViewState>('home');
   const [stars, setStars] = useState(0);
+  
+  // Math Level States
+  const [mathLevel, setMathLevel] = useState<MathLevel>(1);
+  const [mathCorrectCount, setMathCorrectCount] = useState(0);
 
   // Load stars from local storage on mount
   useEffect(() => {
@@ -19,6 +23,23 @@ const App: React.FC = () => {
     const newCount = stars + 1;
     setStars(newCount);
     localStorage.setItem('rfg_stars', newCount.toString());
+
+    // Progression logic for Math
+    if (view === 'math') {
+        const nextCorrectCount = mathCorrectCount + 1;
+        if (nextCorrectCount >= 10 && mathLevel === 1) {
+            setMathLevel(2);
+            setMathCorrectCount(0);
+            // Optionally could alert the user they leveled up
+        } else {
+            setMathCorrectCount(nextCorrectCount);
+        }
+    }
+  };
+
+  const handleMathLevelChange = (newLevel: MathLevel) => {
+    setMathLevel(newLevel);
+    setMathCorrectCount(0);
   };
 
   const renderView = () => {
@@ -39,6 +60,8 @@ const App: React.FC = () => {
           <GameModule
             title="חשבון"
             color="bg-orange-400"
+            mathLevel={mathLevel}
+            onMathLevelChange={handleMathLevelChange}
             questionGenerator={generateMathQuestion}
             questions={[]}
             onBack={() => setView('home')}

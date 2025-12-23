@@ -1,3 +1,4 @@
+
 import { Question } from './types';
 
 // --- HEBREW DATA (Expanded to >100 items) ---
@@ -86,7 +87,7 @@ export const generateSpellingLevel = (): SpellingLevel => {
   // Create scrambled array
   const scrambledLetters = lettersWithNikud.map((char, index) => ({
     id: `l-${index}-${Math.random()}`,
-    char: char.replace(/[\u0591-\u05C7]/g, ''), // display simple char on tile usually, or with nikud? Let's use with Nikud for learning
+    char: char.replace(/[\u0591-\u05C7]/g, ''), 
     charWithNikud: char
   })).sort(() => Math.random() - 0.5);
 
@@ -99,7 +100,7 @@ export const generateSpellingLevel = (): SpellingLevel => {
   };
 };
 
-// --- ENGLISH DATA (Expanded) ---
+// --- ENGLISH DATA ---
 const ENG_COLORS = [
   {name: 'RED', class: 'bg-red-500', isColor: true},
   {name: 'BLUE', class: 'bg-blue-500', isColor: true},
@@ -133,7 +134,7 @@ const ENG_VOCAB = [
   {name: 'SUN', emoji: '☀️'}, {name: 'MOON', emoji: '🌙'}, {name: 'STAR', emoji: '⭐'},
   {name: 'FLOWER', emoji: '🌸'}, {name: 'TREE', emoji: '🌳'}, {name: 'CACTUS', emoji: '🌵'},
   {name: 'RAINBOW', emoji: '🌈'}, {name: 'FIRE', emoji: '🔥'}, {name: 'WATER', emoji: '💧'},
-  // Objects/Furniture
+  // Objects
   {name: 'BALL', emoji: '⚽'}, {name: 'BOOK', emoji: '📖'}, {name: 'PENCIL', emoji: '✏️'},
   {name: 'CRAYON', emoji: '🖍️'}, {name: 'SCISSORS', emoji: '✂️'}, {name: 'BALLOON', emoji: '🎈'},
   {name: 'GIFT', emoji: '🎁'}, {name: 'CAR', emoji: '🚗'}, {name: 'BUS', emoji: '🚌'},
@@ -147,83 +148,50 @@ const ENG_VOCAB = [
   {name: 'GLASSES', emoji: '👓'}, {name: 'CROWN', emoji: '👑'}
 ];
 
+// --- ENGLISH GENERATOR ---
+// Fix: Add missing generateEnglishQuestion function used in App.tsx
 export const generateEnglishQuestion = (): Question => {
-  const isColor = Math.random() < 0.2; // 20% chance for color
-
-  if (isColor) {
-     const item = ENG_COLORS[Math.floor(Math.random() * ENG_COLORS.length)];
-     const distractors: string[] = [];
-     while(distractors.length < 2) {
-        const d = ENG_COLORS[Math.floor(Math.random() * ENG_COLORS.length)];
-        if(d.name !== item.name && !distractors.includes(d.class)) {
-            distractors.push(d.class);
-        }
-     }
-     const options = [item.class, ...distractors].sort(() => Math.random() - 0.5);
-     return {
-        id: `e-${Date.now()}`,
-        prompt: item.name,
-        speechText: item.name.toLowerCase(),
-        correctAnswer: item.class,
-        options: options,
-        promptType: 'text',
-        optionType: 'color'
-     }
-  } else {
-     const item = ENG_VOCAB[Math.floor(Math.random() * ENG_VOCAB.length)];
-     const distractors: string[] = [];
-     while(distractors.length < 2) {
-        const d = ENG_VOCAB[Math.floor(Math.random() * ENG_VOCAB.length)];
-        if(d.name !== item.name && !distractors.includes(d.emoji)) {
-            distractors.push(d.emoji);
-        }
-     }
-     const options = [item.emoji, ...distractors].sort(() => Math.random() - 0.5);
-     return {
-        id: `e-${Date.now()}`,
-        prompt: item.name,
-        speechText: item.name.toLowerCase(),
-        correctAnswer: item.emoji,
-        options: options,
-        promptType: 'text',
-        optionType: 'image'
-     }
+  const selected = ENG_VOCAB[Math.floor(Math.random() * ENG_VOCAB.length)];
+  
+  // Distractors
+  const distractors: string[] = [];
+  while (distractors.length < 2) {
+    const randomItem = ENG_VOCAB[Math.floor(Math.random() * ENG_VOCAB.length)];
+    if (randomItem.name !== selected.name && !distractors.includes(randomItem.emoji)) {
+      distractors.push(randomItem.emoji);
+    }
   }
-}
+  
+  const options = [selected.emoji, ...distractors].sort(() => Math.random() - 0.5);
 
-// Helper for fingers - UPDATED: Single hand up to 5
-const getFingerEmoji = (num: number): string => {
-  const map: Record<number, string> = {
-    0: '✊',
-    1: '☝️',
-    2: '✌️',
-    3: '🤟', // 3 fingers (visual approximation on one hand)
-    4: '✌️✌️', // Changed from 🖖 to 2+2 for easier recognition
-    5: '🖐️',
-    6: '🖐️☝️',
-    7: '🖐️✌️',
-    8: '🖐️🤟',
-    9: '🖐️✌️✌️', // Updated to match the logic of 4
-    10: '👐'
+  return {
+    id: `e-${Date.now()}`,
+    prompt: selected.name,
+    speechText: selected.name,
+    correctAnswer: selected.emoji,
+    options: options,
+    promptType: 'text',
+    optionType: 'image'
   };
-  return map[num] || num.toString();
 };
 
+const MATH_OBJECTS = ['🧊', '🍎', '🍌', '🚗', '🤖', '🎈', '🦆', '⚽', '🍬', '🍦', '🦴', '🐈', '🐶', '🍕', '🚀'];
+
 // Helper to generate Math questions dynamically (Addition and Subtraction)
-export const generateMathQuestion = (): Question => {
+export const generateMathQuestion = (level: number = 1): Question => {
   const isAddition = Math.random() > 0.5;
   let num1, num2, result, operator;
 
+  const maxVal = level === 1 ? 10 : 20;
+
   if (isAddition) {
-    // Addition: Result max 10
-    num1 = Math.floor(Math.random() * 6); // 0-5
-    num2 = Math.floor(Math.random() * (11 - num1)); // Ensure sum <= 10
+    num1 = Math.floor(Math.random() * (maxVal / 2 + 1)); 
+    num2 = Math.floor(Math.random() * (maxVal - num1 + 1)); 
     result = num1 + num2;
     operator = '+';
   } else {
-    // Subtraction: Result min 0
-    num1 = Math.floor(Math.random() * 10) + 1; // 1-10
-    num2 = Math.floor(Math.random() * (num1 + 1)); // Ensure num2 <= num1
+    num1 = Math.floor(Math.random() * maxVal) + 1; 
+    num2 = Math.floor(Math.random() * (num1 + 1)); 
     result = num1 - num2;
     operator = '-';
   }
@@ -231,26 +199,24 @@ export const generateMathQuestion = (): Question => {
   // Generate Distractors
   const distractors = new Set<number>();
   while (distractors.size < 2) {
-    let d = result + Math.floor(Math.random() * 5) - 2; // Close numbers
+    let d = result + Math.floor(Math.random() * 7) - 3; 
     if (d < 0) d = 0;
-    if (d > 10) d = 10;
+    if (d > maxVal) d = maxVal;
     if (d !== result) distractors.add(d);
   }
   
   const options = [result, ...Array.from(distractors)].sort(() => Math.random() - 0.5);
 
-  const finger1 = getFingerEmoji(num1);
-  const finger2 = getFingerEmoji(num2);
-
-  // Spoken text like "2 plus 3"
   const hebrewOp = isAddition ? 'ועוד' : 'פחות';
   const speechText = `${num1} ${hebrewOp} ${num2}`;
+  const emoji = MATH_OBJECTS[Math.floor(Math.random() * MATH_OBJECTS.length)];
 
   return {
     id: `m-${Date.now()}`,
     prompt: `${num1} ${operator} ${num2} = ?`,
     speechText: speechText,
-    visualPrompt: `${finger1}   ${operator}   ${finger2}`,
+    // Specialized format: MATH:num1|operator|num2|emoji
+    visualPrompt: `MATH:${num1}|${operator}|${num2}|${emoji}`,
     correctAnswer: result,
     options: options,
     promptType: 'text', 

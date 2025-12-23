@@ -14,8 +14,7 @@ interface DragState {
   char: string | null;
   x: number;
   y: number;
-  offsetX: number;
-  offsetY: number;
+  targetSlot: number | null; // Track which slot is currently hovered
 }
 
 export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, onStarEarned }) => {
@@ -24,15 +23,14 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
   const [poolLetters, setPoolLetters] = useState<{id: string, char: string, charWithNikud: string, used: boolean}[]>([]);
   const [feedback, setFeedback] = useState<'correct' | 'incorrect' | null>(null);
   
-  // Custom Drag State for Pointer Events (Works on Mobile & Desktop)
+  // Custom Drag State
   const [dragState, setDragState] = useState<DragState>({
-    active: false, id: null, char: null, x: 0, y: 0, offsetX: 0, offsetY: 0
+    active: false, id: null, char: null, x: 0, y: 0, targetSlot: null
   });
 
   const initLevel = useCallback(() => {
     const newLevel = generateSpellingLevel();
     setLevel(newLevel);
-    // Initialize slots based on word length (RTL logic handled by UI direction)
     setPlacedLetters(new Array(newLevel.scrambledLetters.length).fill(null));
     setPoolLetters(newLevel.scrambledLetters.map(l => ({...l, used: false})));
     setFeedback(null);
@@ -42,49 +40,49 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
     initLevel();
   }, [initLevel]);
 
-  const handleSpeakWord = () => {
-    if (level) {
-      // Use word with Nikud for better pronunciation and consistency
-      audioService.speak(level.word, 'he-IL', true);
-    }
-  };
-
-  // --- Pointer Event Handlers (Drag & Drop) ---
+  // --- Pointer Event Handlers ---
 
   const handlePointerDown = (e: React.PointerEvent, id: string, char: string) => {
-    // Prevent scrolling on touch specifically when starting a drag on a letter
-    e.preventDefault(); 
     const target = e.currentTarget as HTMLElement;
-    const rect = target.getBoundingClientRect();
-    
+    try {
+        target.setPointerCapture(e.pointerId);
+    } catch (err) {}
+
     setDragState({
       active: true,
       id,
       char,
-      x: rect.left,
-      y: rect.top,
-      offsetX: e.clientX - rect.left,
-      offsetY: e.clientY - rect.top
+      x: e.clientX,
+      y: e.clientY,
+      targetSlot: null
     });
   };
 
-  // Global pointer move/up handlers
   useEffect(() => {
     const handlePointerMove = (e: PointerEvent) => {
       if (dragState.active) {
-        e.preventDefault(); // Prevent scrolling while dragging
+        if (e.cancelable) e.preventDefault();
+        
+        // Hit test for slots
+        const elements = document.elementsFromPoint(e.clientX, e.clientY);
+        const slotElement = elements.find(el => el.hasAttribute('data-slot-index'));
+        let hoverIdx: number | null = null;
+        if (slotElement) {
+            const indexStr = slotElement.getAttribute('data-slot-index');
+            if (indexStr !== null) hoverIdx = parseInt(indexStr, 10);
+        }
+
         setDragState(prev => ({
           ...prev,
-          x: e.clientX - prev.offsetX,
-          y: e.clientY - prev.offsetY
+          x: e.clientX,
+          y: e.clientY,
+          targetSlot: hoverIdx
         }));
       }
     };
 
     const handlePointerUp = (e: PointerEvent) => {
       if (dragState.active) {
-        // Identify drop target
-        // We look for elements with data-slot-index attribute
         const elements = document.elementsFromPoint(e.clientX, e.clientY);
         const slotElement = elements.find(el => el.hasAttribute('data-slot-index'));
         
@@ -96,37 +94,29 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
           }
         }
 
-        setDragState(prev => ({ ...prev, active: false, id: null, char: null }));
+        setDragState(prev => ({ ...prev, active: false, id: null, char: null, targetSlot: null }));
       }
     };
 
     if (dragState.active) {
-      // Add 'touch-action: none' to body while dragging to be safe
-      document.body.style.touchAction = 'none';
-      window.addEventListener('pointermove', handlePointerMove);
+      window.addEventListener('pointermove', handlePointerMove, { passive: false });
       window.addEventListener('pointerup', handlePointerUp);
-    } else {
-      document.body.style.touchAction = '';
+      window.addEventListener('pointercancel', handlePointerUp);
     }
 
     return () => {
-      document.body.style.touchAction = '';
       window.removeEventListener('pointermove', handlePointerMove);
       window.removeEventListener('pointerup', handlePointerUp);
+      window.removeEventListener('pointercancel', handlePointerUp);
     };
   }, [dragState.active, dragState.id, dragState.char]);
   
-  // Ref-based Drop Handler to avoid stale closures in Event Listener
   const handleDropRef = useRef<(index: number, id: string, char: string) => void>(() => {});
   
-  // Actual Drop Logic
   const performDrop = (slotIndex: number, letterId: string, char: string) => {
-    // If slot is already occupied, abort
     setPlacedLetters(prev => {
         if (prev[slotIndex] !== null) return prev;
         
-        // Also check if pool item is used (sanity check, though UI shouldn't allow drag)
-        // We'll update pool state here too
         setPoolLetters(poolPrev => {
             const item = poolPrev.find(l => l.id === letterId);
             if (!item || item.used) return poolPrev;
@@ -139,7 +129,6 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
     });
   };
 
-  // Update ref
   useEffect(() => {
     handleDropRef.current = performDrop;
   });
@@ -148,12 +137,10 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
     handleDropRef.current(slotIndex, letterId, char);
   };
 
-  // --- Tap Fallback ---
   const handlePoolLetterClick = (letterId: string, char: string) => {
-    if (feedback) return;
+    if (feedback || dragState.active) return;
     const emptyIndex = placedLetters.indexOf(null);
     if (emptyIndex === -1) return;
-
     performDrop(emptyIndex, letterId, char);
   };
 
@@ -178,9 +165,7 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
     });
   };
 
-  // --- Check Answer ---
   useEffect(() => {
-    // Ensure we don't check again if feedback is already in progress
     if (!level || feedback !== null) return;
     
     const isFull = placedLetters.every(l => l !== null);
@@ -202,8 +187,6 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
     if (feedback === 'correct') {
       initLevel();
     } else if (feedback === 'incorrect') {
-      // Reset board to prevent infinite loop.
-      // We clear placed letters and mark pool letters as unused so the user can try again.
       setPlacedLetters(new Array(placedLetters.length).fill(null));
       setPoolLetters(prev => prev.map(l => ({ ...l, used: false })));
     }
@@ -218,7 +201,7 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
       el.style.left = Math.random() * 100 + 'vw';
       el.style.animationDuration = (Math.random() * 2 + 1) + 's';
       el.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
-      el.style.zIndex = '200'; // Ensure confetti is above the overlay
+      el.style.zIndex = '200';
       document.body.appendChild(el);
       setTimeout(() => el.remove(), 3000);
     }
@@ -227,11 +210,7 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
   if (!level) return <div>Loading...</div>;
 
   return (
-    <div className="min-h-screen flex flex-col bg-emerald-400 transition-colors duration-500 overflow-hidden select-none">
-       {/* 
-         Removed global touch-none. 
-         Added touch-none to draggable items.
-       */}
+    <div className="min-h-screen flex flex-col bg-emerald-400 transition-colors duration-500 overflow-hidden select-none touch-none">
        <FeedbackOverlay 
          type={feedback} 
          onClose={handleFeedbackClose} 
@@ -239,7 +218,7 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
        />
 
       {/* Header */}
-      <div className="p-4 flex items-center justify-between">
+      <div className="p-4 flex items-center justify-between z-10">
         <button 
           onClick={onBack}
           className="bg-white/20 hover:bg-white/30 text-white rounded-full p-3 transition-all"
@@ -252,28 +231,16 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
         <div className="w-12"></div>
       </div>
 
-      <div className="flex-1 flex flex-col items-center justify-start p-4 max-w-2xl mx-auto w-full gap-8">
+      <div className="flex-1 flex flex-col items-center justify-start p-4 max-w-2xl mx-auto w-full gap-4 md:gap-8">
         
         {/* Image Card */}
-        <div className="bg-white rounded-3xl shadow-xl p-8 w-64 h-64 flex items-center justify-center animate-bounce-short">
-            <span className="text-9xl filter drop-shadow-sm">{level.emoji}</span>
+        <div className="bg-white rounded-3xl shadow-xl p-6 md:p-8 w-48 h-48 md:w-64 md:h-64 flex items-center justify-center z-10">
+            <span className="text-8xl md:text-9xl filter drop-shadow-sm">{level.emoji}</span>
         </div>
 
-        {/* Word Area with Audio Button */}
-        <div className="flex items-center justify-center gap-4 w-full">
-            {/* Audio Button */}
-            <button
-                onClick={handleSpeakWord}
-                className="bg-white/20 hover:bg-white/40 text-white p-3 rounded-full transition-all shadow-md active:scale-95 flex-shrink-0"
-                title="השמע מילה"
-            >
-                 <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                  <polygon points="11 5 6 9 2 9 2 15 6 15 11 19 11 5"></polygon>
-                  <path d="M19.07 4.93a10 10 0 0 1 0 14.14M15.54 8.46a5 5 0 0 1 0 7.07"></path>
-                </svg>
-            </button>
-
-            {/* Empty Slots (The Word) */}
+        {/* Word Area */}
+        <div className="flex items-center justify-center gap-4 w-full z-10">
+            {/* Empty Slots */}
             <div className="flex flex-row gap-2 md:gap-4 justify-center" dir="rtl">
                 {placedLetters.map((char, idx) => (
                     <div
@@ -284,21 +251,21 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
                             w-14 h-14 md:w-20 md:h-20 rounded-xl border-4 flex items-center justify-center text-4xl font-bold transition-all cursor-pointer z-10
                             ${char 
                               ? 'bg-white border-white text-slate-800 shadow-md' 
-                              : 'bg-black/20 border-white/40 border-dashed text-transparent hover:bg-white/10'}
+                              : (dragState.active && dragState.targetSlot === idx 
+                                ? 'bg-white/40 border-white scale-110 animate-pulse' 
+                                : 'bg-black/20 border-white/40 border-dashed text-transparent hover:bg-white/10')}
                         `}
                     >
                         {char || '?'}
                     </div>
                 ))}
             </div>
-             {/* Spacer to balance the layout if needed, though centered flex works well with just the button on one side */}
-             <div className="w-12 hidden md:block"></div>
         </div>
 
         <div className="flex-1"></div>
 
         {/* Scrambled Letters Pool */}
-        <div className="w-full bg-white/20 rounded-t-3xl p-6 pb-12">
+        <div className="w-full bg-white/20 rounded-t-3xl p-6 pb-12 z-10">
             <p className="text-center text-white font-bold text-lg mb-4 opacity-80">
                 לחץ או גרור את האותיות
             </p>
@@ -311,8 +278,10 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
                         className={`
                             w-16 h-16 rounded-2xl shadow-lg flex items-center justify-center text-4xl font-bold transition-all select-none touch-none
                             ${l.used 
-                                ? 'bg-white/10 text-transparent scale-90 cursor-default' 
-                                : 'bg-white text-emerald-600 cursor-grab active:cursor-grabbing hover:scale-105'}
+                                ? 'bg-white/10 text-transparent scale-90 cursor-default border-none' 
+                                : (dragState.active && dragState.id === l.id 
+                                    ? 'bg-emerald-300 scale-95 opacity-50' 
+                                    : 'bg-white text-emerald-600 cursor-grab active:cursor-grabbing hover:scale-105 active:scale-95 border-b-4 border-black/10')}
                         `}
                     >
                         {l.charWithNikud}
@@ -325,7 +294,7 @@ export const SpellingGameModule: React.FC<SpellingGameModuleProps> = ({ onBack, 
       {/* Floating Drag Item */}
       {dragState.active && dragState.char && (
         <div 
-            className="fixed w-20 h-20 bg-white/90 text-emerald-600 rounded-2xl shadow-2xl flex items-center justify-center text-5xl font-bold z-50 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 border-4 border-emerald-400 touch-none"
+            className="fixed w-20 h-20 bg-white/95 text-emerald-600 rounded-2xl shadow-2xl flex items-center justify-center text-5xl font-bold z-50 pointer-events-none transform -translate-x-1/2 -translate-y-1/2 border-4 border-emerald-400"
             style={{
                 left: dragState.x,
                 top: dragState.y,

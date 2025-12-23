@@ -28,7 +28,8 @@ export const FeedbackOverlay: React.FC<FeedbackOverlayProps> = ({ type, onClose,
         p-8 rounded-3xl shadow-2xl flex flex-col items-center gap-4 border-4
         ${isCorrect ? 'bg-green-100 border-green-500' : 'bg-red-100 border-red-500'}
       `}>
-        <div className="text-8xl animate-bounce-short">
+        {/* Removed animate-bounce-short from icon */}
+        <div className="text-8xl">
           {isCorrect ? '🌟' : '🤔'}
         </div>
         <h2 className={`text-4xl font-black ${isCorrect ? 'text-green-600' : 'text-red-500'}`}>

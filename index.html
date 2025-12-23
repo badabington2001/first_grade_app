@@ -14,13 +14,6 @@
         background-color: #f0f9ff;
         overscroll-behavior: none;
       }
-      .animate-bounce-short {
-        animation: bounce-short 0.5s infinite;
-      }
-      @keyframes bounce-short {
-        0%, 100% { transform: translateY(0); }
-        50% { transform: translateY(-10%); }
-      }
       .confetti {
         position: fixed;
         width: 10px;
@@ -30,6 +23,37 @@
       }
       @keyframes fall {
         to { transform: translateY(100vh) rotate(720deg); }
+      }
+      
+      /* Subtraction Hand & Cube Animations */
+      @keyframes hand-grab {
+        0% { transform: translateX(100px) translateY(50px) rotate(0deg); opacity: 0; }
+        15% { transform: translateX(20px) translateY(-20px) rotate(-10deg); opacity: 1; }
+        35% { transform: translateX(0px) translateY(0px) rotate(0deg); opacity: 1; }
+        55% { transform: translateX(150px) translateY(0px) rotate(5deg); opacity: 1; }
+        70%, 100% { transform: translateX(200px) translateY(0px); opacity: 0; }
+      }
+      .animate-hand {
+        animation: hand-grab 6s infinite ease-in-out;
+      }
+
+      @keyframes cube-carried {
+        0%, 35% { transform: translateX(0) scale(1); opacity: 1; }
+        55% { transform: translateX(150px) scale(0.9); opacity: 0.5; }
+        70%, 90% { transform: translateX(200px); opacity: 0; }
+        100% { transform: translateX(0) scale(1); opacity: 1; }
+      }
+      .animate-cube-carried {
+        animation: cube-carried 6s infinite ease-in-out;
+      }
+
+      @keyframes x-mark-pulse {
+        0%, 30% { opacity: 0; transform: scale(0.5); }
+        35%, 50% { opacity: 1; transform: scale(1.1); }
+        55%, 100% { opacity: 0; }
+      }
+      .animate-x-pulse {
+        animation: x-mark-pulse 6s infinite ease-in-out;
       }
     </style>
   <script type="importmap">

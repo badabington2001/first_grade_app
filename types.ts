@@ -1,4 +1,5 @@
 export type ViewState = 'home' | 'hebrew' | 'math' | 'english' | 'spelling';
+export type MathLevel = 1 | 2;
 
 export interface Question {
   id: string;
